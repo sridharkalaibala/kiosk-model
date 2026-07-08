@@ -37,6 +37,8 @@ Open it in OpenSCAD and press F5 to preview. Toggle `use_prototype_box`, `show_m
 - Internal sound box with no exterior grille.
 - Rear upper wall-mounted power strip, not occupying floor space.
 - External rear/right 80 mm exhaust fan.
+- 19.5 mm round power-button hole on the right side panel.
+- 25 mm rear/right lower extension-wire hole with rubber grommet.
 - Upright vertical monitor reference frame above the bottom box.
 - Hidden cable path from monitor to bottom box.
 - Direction labels and intake/exhaust airflow arrows.
@@ -50,3 +52,8 @@ The component actual measurements are kept separate from placement values so the
 ## Fabrication Notes
 
 The motherboard plate and screw/standoff points are visual communication features, not final drill drawings. Confirm the exact motherboard hole pattern from the real board before fabricating the plate.
+
+Panel openings currently shown:
+
+- Right side panel: 19.5 mm round power-button hole.
+- Rear/right bottom area: 25 mm round extension-wire hole with rubber grommet.

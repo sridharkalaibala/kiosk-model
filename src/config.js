@@ -62,3 +62,16 @@ export const COLORS = {
   exhaust: 0xff4b42,
   label: 0xffffff,
 };
+
+export const PANEL_FEATURES = {
+  powerButton: {
+    label: "Power button hole",
+    diameter: 19.5,
+    position: { y: 75, z: 170 },
+  },
+  extensionWire: {
+    label: "Extension wire grommet hole",
+    diameter: 25,
+    position: { xOffsetFromRight: 55, z: 45 },
+  },
+};

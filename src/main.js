@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { BOX_PRESETS, COLORS, COMPONENTS, MONITORS } from "./config.js";
+import { BOX_PRESETS, COLORS, COMPONENTS, MONITORS, PANEL_FEATURES } from "./config.js";
 
 const viewer = document.querySelector("#viewer");
 const presetSelect = document.querySelector("#preset");
@@ -141,6 +141,60 @@ function addReceiptSlot(group, box, printerCenter) {
   );
   slot.material.metalness = 0;
   return slot;
+}
+
+function addPanelHoleMarkers(group, box) {
+  const rightX = box.width / 2;
+  const power = PANEL_FEATURES.powerButton;
+  addCylinder(
+    group,
+    "power-button-hole-marker",
+    power.diameter / 2,
+    3,
+    { x: rightX + 2, y: power.position.y, z: power.position.z },
+    0x0b0d0f,
+    { z: Math.PI / 2 },
+  );
+  addCylinder(
+    group,
+    "power-button-trim-ring",
+    power.diameter / 2 + 4,
+    2,
+    { x: rightX + 1, y: power.position.y, z: power.position.z },
+    0x2f363d,
+    { z: Math.PI / 2 },
+  );
+  addLabel(group, "19.5 mm power button hole", {
+    x: rightX + 24,
+    y: power.position.y,
+    z: power.position.z + 28,
+  });
+
+  const extension = PANEL_FEATURES.extensionWire;
+  const extensionX = rightX - extension.position.xOffsetFromRight;
+  addCylinder(
+    group,
+    "extension-wire-hole-marker",
+    extension.diameter / 2,
+    3,
+    { x: extensionX, y: box.depth + 2, z: extension.position.z },
+    0x030405,
+    { x: Math.PI / 2 },
+  );
+  addCylinder(
+    group,
+    "extension-wire-rubber-grommet",
+    extension.diameter / 2 + 5,
+    5,
+    { x: extensionX, y: box.depth + 4, z: extension.position.z },
+    0x15191d,
+    { x: Math.PI / 2 },
+  );
+  addLabel(group, "25 mm wire hole + rubber grommet", {
+    x: extensionX,
+    y: box.depth + 34,
+    z: extension.position.z + 28,
+  });
 }
 
 function addPrinterDetails(group, printerCenter, printerSize) {
@@ -448,6 +502,7 @@ function buildScene() {
     `Bottom box ${box.width}W x ${box.depth}D x ${box.height}H`,
     0.2,
   );
+  addPanelHoleMarkers(root, box);
 
   // Thermal printer: actual 145W x 180D x 130H, front-aligned at Y = 0.
   const printer = COMPONENTS.printer;
@@ -582,6 +637,8 @@ function updateReadout(box, monitor) {
     ["SMPS", "143L x 80W x 40H mm", COMPONENTS.smps.color],
     ["Sound", "115L x 113W x 97H mm", COMPONENTS.soundBox.color],
     ["Power strip", COMPONENTS.powerStrip.actual, COMPONENTS.powerStrip.color],
+    ["Power button hole", "19.5 mm round, right side panel", 0x2f363d],
+    ["Wire grommet hole", "25 mm round, rear/right bottom", 0x15191d],
     ["Monitor ref", `${monitor.width}W x ${monitor.height}H mm`, COLORS.screen],
   ];
   readout.replaceChildren(

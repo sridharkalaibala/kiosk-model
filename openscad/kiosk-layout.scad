@@ -36,6 +36,8 @@ sound_box_size = [115, 113, 97];     // 115L x 113W x 97H
 power_strip_size = [246, 89, 60];    // 246L x 89W x 40-60H
 fan_size = [80, 12, 80];             // 80 x 80 fan, outside rear wall
 mb_plate_size = [2, 190, 190];        // sheet metal plate for motherboard fixing
+power_button_hole_d = 19.5;           // right side panel round hole
+extension_wire_hole_d = 25;           // rear/right bottom cable hole with rubber grommet
 
 monitor_24_size = [420, 30, 680];    // visual reference for 24 inch portrait monitor
 
@@ -78,10 +80,22 @@ module box_part(name, pos, size, col) {
 module hollow_body() {
     color(body_color)
     difference() {
-        cube([box_w, box_d, box_h]);
+        difference() {
+            cube([box_w, box_d, box_h]);
 
-        translate([wall, wall, wall])
-        cube([box_w - 2 * wall, box_d - 2 * wall, box_h - wall]);
+            translate([wall, wall, wall])
+            cube([box_w - 2 * wall, box_d - 2 * wall, box_h - wall]);
+        }
+
+        // 19.5 mm power button hole on right side panel.
+        translate([box_w - wall / 2, 75, 170])
+        rotate([0, 90, 0])
+        cylinder(h = wall + 4, d = power_button_hole_d, center = true);
+
+        // 25 mm rear/right bottom extension wire hole.
+        translate([box_w - 55, box_d - wall / 2, 45])
+        rotate([90, 0, 0])
+        cylinder(h = wall + 4, d = extension_wire_hole_d, center = true);
     }
 }
 
@@ -114,6 +128,33 @@ module front_receipt_slot() {
     color("black")
     translate([(box_w - 120) / 2, -1, 105])
     cube([120, 4, 18]);
+}
+
+module panel_hole_markers() {
+    // Power button hole marker on right side panel.
+    color("black")
+    translate([box_w + 1, 75, 170])
+    rotate([0, 90, 0])
+    cylinder(h = 2, d = power_button_hole_d);
+
+    label3d("POWER BUTTON\n19.5mm HOLE", [box_w + 2, 75, 196], 8);
+
+    // Rear/right bottom extension wire hole with rubber grommet.
+    color("black")
+    translate([box_w - 55, box_d + 1, 45])
+    rotate([90, 0, 0])
+    cylinder(h = 2, d = extension_wire_hole_d + 8);
+
+    color([0.05, 0.05, 0.05, 1])
+    translate([box_w - 55, box_d + 3, 45])
+    rotate([90, 0, 0])
+    difference() {
+        cylinder(h = 4, d = extension_wire_hole_d + 8);
+        translate([0, 0, -1])
+        cylinder(h = 6, d = extension_wire_hole_d);
+    }
+
+    label3d("EXTENSION WIRE\n25mm GROMMET HOLE", [box_w - 55, box_d + 35, 74], 8);
 }
 
 module fan_80mm() {
@@ -232,6 +273,7 @@ module motherboard_mount_plate() {
 if (show_body) hollow_body();
 if (!show_body) body_outline();
 front_receipt_slot();
+panel_hole_markers();
 fan_80mm();
 
 // Thermal printer: front-aligned so its front face is at Y = 0.
