@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kiosk Internal Layout Viewer</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <section id="viewer" aria-label="3D kiosk layout viewer"></section>
+      <aside id="panel" aria-label="Viewer controls">
+        <h1>Kiosk Layout</h1>
+        <label>
+          Box preset
+          <select id="preset">
+            <option value="compact">Compact 380 x 300 x 260</option>
+            <option value="prototype">Prototype 400 x 320 x 280</option>
+          </select>
+        </label>
+        <label>
+          Monitor reference
+          <select id="monitor">
+            <option value="24">24 inch visual ref</option>
+            <option value="21.5">21.5 inch visual ref</option>
+            <option value="15">15 inch visual ref</option>
+          </select>
+        </label>
+        <label class="check">
+          <input id="explode" type="checkbox" />
+          Slightly separate parts
+        </label>
+        <dl id="readout"></dl>
+      </aside>
+    </main>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
+
