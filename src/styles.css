@@ -91,7 +91,20 @@ select {
 }
 
 dt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   color: #9daab3;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 50%;
+  background: var(--dot-color);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28);
 }
 
 dd {

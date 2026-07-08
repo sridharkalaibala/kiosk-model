@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { BOX_PRESETS, COLORS, COMPONENTS, MONITORS } from "./config.js";
+import { BOX_PRESETS, COLORS, COMPONENTS, IMAGE_TEXTURES, MONITORS } from "./config.js";
 
 const viewer = document.querySelector("#viewer");
 const presetSelect = document.querySelector("#preset");
@@ -34,6 +34,10 @@ const root = new THREE.Group();
 scene.add(root);
 let activeBox = BOX_PRESETS.compact;
 let activeMonitor = MONITORS["24"];
+
+const textureLoader = new THREE.TextureLoader();
+textureLoader.setCrossOrigin("anonymous");
+const textureCache = new Map();
 
 scene.add(new THREE.HemisphereLight(0xdcefff, 0x343a40, 2.2));
 const sun = new THREE.DirectionalLight(0xffffff, 2.4);
@@ -128,6 +132,40 @@ function addCylinder(group, name, radius, depth, position, color, rotation = {})
   return mesh;
 }
 
+function getTexture(textureInfo) {
+  if (!textureCache.has(textureInfo.url)) {
+    const texture = textureLoader.load(
+      textureInfo.url,
+      () => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.needsUpdate = true;
+      },
+      undefined,
+      () => textureCache.delete(textureInfo.url),
+    );
+    texture.colorSpace = THREE.SRGBColorSpace;
+    textureCache.set(textureInfo.url, texture);
+  }
+  return textureCache.get(textureInfo.url);
+}
+
+function addPhotoPlane(group, name, textureInfo, size, position, rotation = {}, opacity = 0.95) {
+  const geometry = new THREE.PlaneGeometry(size.width, size.height);
+  const material = new THREE.MeshBasicMaterial({
+    map: getTexture(textureInfo),
+    transparent: true,
+    opacity,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = name;
+  mesh.position.set(position.x, position.y, position.z);
+  mesh.rotation.set(rotation.x ?? 0, rotation.y ?? 0, rotation.z ?? 0);
+  group.add(mesh);
+  return mesh;
+}
+
 function addReceiptSlot(group, box, printerCenter) {
   const slot = addBox(
     group,
@@ -144,6 +182,13 @@ function addReceiptSlot(group, box, printerCenter) {
 }
 
 function addPrinterDetails(group, printerCenter, printerSize) {
+  addPhotoPlane(
+    group,
+    "printer-photo-reference",
+    IMAGE_TEXTURES.printer,
+    { width: printerSize.width - 10, height: printerSize.depth - 12 },
+    { x: printerCenter.x, y: printerCenter.y + 2, z: printerCenter.z + printerSize.height / 2 + 1 },
+  );
   addBox(
     group,
     "printer-front-face",
@@ -171,17 +216,119 @@ function addPrinterDetails(group, printerCenter, printerSize) {
     0xf7f3dc,
     { z: Math.PI / 2 },
   );
+  addBox(
+    group,
+    "printer-cutter-bar",
+    { width: 106, depth: 5, height: 6 },
+    { x: printerCenter.x, y: 6, z: 107 },
+    0x0c0f12,
+    "",
+  );
+  addCylinder(
+    group,
+    "printer-status-led",
+    4,
+    3,
+    { x: printerCenter.x + printerSize.width / 2 - 22, y: 0, z: printerCenter.z + 34 },
+    0x2bff75,
+    { x: Math.PI / 2 },
+  );
+  addCylinder(
+    group,
+    "printer-feed-button",
+    7,
+    3,
+    { x: printerCenter.x + printerSize.width / 2 - 40, y: 0, z: printerCenter.z + 34 },
+    0x303841,
+    { x: Math.PI / 2 },
+  );
 }
 
 function addMotherboardDetails(group, center) {
+  addPhotoPlane(
+    group,
+    "motherboard-photo-reference",
+    IMAGE_TEXTURES.motherboard,
+    { width: 150, height: 150 },
+    { x: center.x + 25.8, y: center.y, z: center.z },
+    { y: Math.PI / 2, z: Math.PI / 2 },
+  );
   const chipColor = 0x1d2420;
   addBox(group, "motherboard-cpu", { width: 22, depth: 28, height: 8 }, { x: center.x + 2, y: center.y - 24, z: center.z + 18 }, chipColor, "");
-  addBox(group, "motherboard-ram", { width: 10, depth: 92, height: 7 }, { x: center.x + 4, y: center.y + 14, z: center.z + 4 }, 0x273f34, "");
+  addBox(group, "motherboard-ram-1", { width: 10, depth: 92, height: 7 }, { x: center.x + 4, y: center.y + 14, z: center.z + 4 }, 0x273f34, "");
+  addBox(group, "motherboard-ram-2", { width: 10, depth: 92, height: 7 }, { x: center.x + 4, y: center.y + 14, z: center.z - 10 }, 0x24382f, "");
   addBox(group, "motherboard-io", { width: 12, depth: 46, height: 18 }, { x: center.x - 20, y: center.y - 58, z: center.z - 46 }, 0xc4ccd0, "");
+  addBox(group, "motherboard-pcie-slot", { width: 8, depth: 96, height: 8 }, { x: center.x + 5, y: center.y + 18, z: center.z - 42 }, 0x20242a, "");
   addBox(group, "motherboard-heatsink", { width: 18, depth: 24, height: 12 }, { x: center.x + 4, y: center.y + 48, z: center.z + 28 }, 0x7a858a, "");
+  for (const [i, point] of [
+    [0, { y: -58, z: 34 }],
+    [1, { y: -42, z: 36 }],
+    [2, { y: 54, z: -20 }],
+    [3, { y: 68, z: -22 }],
+    [4, { y: 70, z: 46 }],
+  ]) {
+    addCylinder(
+      group,
+      `motherboard-capacitor-${i}`,
+      4,
+      10,
+      { x: center.x + 8, y: center.y + point.y, z: center.z + point.z },
+      0x2b3035,
+      { z: Math.PI / 2 },
+    );
+  }
+  for (const [i, y] of [-72, -60, -48].entries()) {
+    addBox(
+      group,
+      `motherboard-rear-port-${i}`,
+      { width: 8, depth: 10, height: 12 },
+      { x: center.x - 24, y: center.y + y, z: center.z - 18 + i * 16 },
+      0xb8c1c6,
+      "",
+    );
+  }
+}
+
+function addMotherboardMountingHardware(group, plateX, plateY, plateZ) {
+  const points = [
+    { y: plateY - 72, z: plateZ - 70 },
+    { y: plateY + 72, z: plateZ - 70 },
+    { y: plateY - 72, z: plateZ + 70 },
+    { y: plateY + 72, z: plateZ + 70 },
+  ];
+
+  for (const [index, point] of points.entries()) {
+    addCylinder(
+      group,
+      `motherboard-standoff-${index + 1}`,
+      6,
+      10,
+      { x: plateX + 7, y: point.y, z: point.z },
+      0xd5dde1,
+      { z: Math.PI / 2 },
+    );
+    addCylinder(
+      group,
+      `motherboard-screw-head-${index + 1}`,
+      3,
+      3,
+      { x: plateX + 14, y: point.y, z: point.z },
+      0x2d3338,
+      { z: Math.PI / 2 },
+    );
+  }
+
+  addLabel(group, "M3 standoffs / screw points", { x: plateX + 18, y: plateY - 96, z: plateZ + 92 });
 }
 
 function addSmpsDetails(group, center, size) {
+  addPhotoPlane(
+    group,
+    "smps-photo-reference",
+    IMAGE_TEXTURES.smps,
+    { width: size.width - 8, height: size.depth - 8 },
+    { x: center.x, y: center.y, z: center.z + size.height / 2 + 3 },
+  );
   for (let i = -2; i <= 2; i += 1) {
     addBox(
       group,
@@ -192,9 +339,46 @@ function addSmpsDetails(group, center, size) {
       "",
     );
   }
+  for (let i = -2; i <= 2; i += 1) {
+    addBox(
+      group,
+      `smps-side-slot-${i}`,
+      { width: 4, depth: 7, height: 20 },
+      { x: center.x - size.width / 2 - 2, y: center.y + i * 13, z: center.z + 2 },
+      0x20252a,
+      "",
+    );
+  }
+  addBox(
+    group,
+    "smps-terminal-block",
+    { width: 44, depth: 10, height: 16 },
+    { x: center.x + size.width / 2 - 28, y: center.y - size.depth / 2 - 2, z: center.z + 4 },
+    0x26313a,
+    "",
+  );
+  for (let i = 0; i < 3; i += 1) {
+    addBox(
+      group,
+      `smps-terminal-screw-${i}`,
+      { width: 9, depth: 3, height: 4 },
+      { x: center.x + size.width / 2 - 42 + i * 14, y: center.y - size.depth / 2 - 8, z: center.z + 12 },
+      0xd6dde2,
+      "",
+    );
+  }
 }
 
 function addSoundBoxDetails(group, center, size) {
+  addPhotoPlane(
+    group,
+    "sound-box-photo-reference",
+    IMAGE_TEXTURES.soundBox,
+    { width: size.width - 10, height: size.height - 10 },
+    { x: center.x, y: center.y - size.depth / 2 - 4, z: center.z },
+    { x: Math.PI / 2 },
+    0.88,
+  );
   addBox(
     group,
     "sound-box-sealed-badge",
@@ -207,6 +391,15 @@ function addSoundBoxDetails(group, center, size) {
 }
 
 function addPowerStripDetails(group, center, size) {
+  addPhotoPlane(
+    group,
+    "power-strip-photo-reference",
+    IMAGE_TEXTURES.powerStrip,
+    { width: size.width - 10, height: size.depth - 10 },
+    { x: center.x, y: center.y, z: center.z + size.height / 2 + 2 },
+    {},
+    0.9,
+  );
   for (let i = -2; i <= 2; i += 1) {
     addCylinder(
       group,
@@ -216,7 +409,31 @@ function addPowerStripDetails(group, center, size) {
       { x: center.x + i * 42, y: center.y - size.depth / 2 - 2, z: center.z + 2 },
       0x2a1f13,
     );
+    addBox(
+      group,
+      `power-strip-slot-a-${i}`,
+      { width: 3, depth: 2, height: 12 },
+      { x: center.x + i * 42 - 4, y: center.y - size.depth / 2 - 5, z: center.z + 2 },
+      0x0d0d0d,
+      "",
+    );
+    addBox(
+      group,
+      `power-strip-slot-b-${i}`,
+      { width: 3, depth: 2, height: 12 },
+      { x: center.x + i * 42 + 4, y: center.y - size.depth / 2 - 5, z: center.z + 2 },
+      0x0d0d0d,
+      "",
+    );
   }
+  addBox(
+    group,
+    "power-strip-cable-tail",
+    { width: 16, depth: 18, height: 10 },
+    { x: center.x + size.width / 2 - 8, y: center.y + size.depth / 2 + 4, z: center.z - 12 },
+    0x1c1c1c,
+    "",
+  );
 }
 
 function addFanDetail(group, fanCenter, box) {
@@ -234,6 +451,19 @@ function addFanDetail(group, fanCenter, box) {
   hub.position.copy(ring.position);
   hub.rotation.x = Math.PI / 2;
   group.add(hub);
+
+  for (let i = 0; i < 4; i += 1) {
+    const blade = addBox(
+      group,
+      `fan-blade-${i}`,
+      { width: 9, depth: 4, height: 30 },
+      { x: fanCenter.x, y: box.depth + 21, z: fanCenter.z + 18 },
+      0x20252b,
+      "",
+    );
+    blade.rotation.y = (Math.PI / 2) * i;
+    blade.rotation.z = Math.PI / 9;
+  }
 }
 
 function addMonitor(group, box, monitor) {
@@ -309,16 +539,18 @@ function buildScene() {
 
   // Motherboard: vertical on fixed left internal plate; top-view footprint 50W x 170D.
   const motherboard = COMPONENTS.motherboard;
+  const platePosition = { x: leftX + innerWallGap + separated, y: 118, z: 106 };
   addBox(
     root,
     "motherboard-left-plate",
     { width: 4, depth: 190, height: 190 },
-    { x: leftX + innerWallGap + separated, y: 118, z: 106 },
+    platePosition,
     0x3a4248,
-    "Left fixed internal plate",
+    "Sheet metal motherboard plate",
     0.82,
     { x: -38, y: -34, z: -54 },
   );
+  addMotherboardMountingHardware(root, platePosition.x, platePosition.y, platePosition.z);
   addBox(
     root,
     "motherboard",
@@ -422,18 +654,23 @@ function addFloorGrid(box, monitor) {
 
 function updateReadout(box, monitor) {
   const rows = [
-    ["Box", `${box.width}W x ${box.depth}D x ${box.height}H mm`],
-    ["Printer", "145W x 180D x 130H mm"],
-    ["Motherboard", "170W x 170H x 50D mm"],
-    ["SMPS", "143L x 80W x 40H mm"],
-    ["Sound", "115L x 113W x 97H mm"],
-    ["Power strip", COMPONENTS.powerStrip.actual],
-    ["Monitor ref", `${monitor.width}W x ${monitor.height}H mm`],
+    ["Box", `${box.width}W x ${box.depth}D x ${box.height}H mm`, COLORS.box],
+    ["Printer", "145W x 180D x 130H mm", COMPONENTS.printer.color],
+    ["Motherboard", "170W x 170H x 50D mm", COMPONENTS.motherboard.color],
+    ["SMPS", "143L x 80W x 40H mm", COMPONENTS.smps.color],
+    ["Sound", "115L x 113W x 97H mm", COMPONENTS.soundBox.color],
+    ["Power strip", COMPONENTS.powerStrip.actual, COMPONENTS.powerStrip.color],
+    ["Monitor ref", `${monitor.width}W x ${monitor.height}H mm`, COLORS.screen],
   ];
   readout.replaceChildren(
-    ...rows.flatMap(([term, value]) => {
+    ...rows.flatMap(([term, value, color]) => {
       const dt = document.createElement("dt");
-      dt.textContent = term;
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.setProperty("--dot-color", `#${color.toString(16).padStart(6, "0")}`);
+      const label = document.createElement("span");
+      label.textContent = term;
+      dt.append(dot, label);
       const dd = document.createElement("dd");
       dd.textContent = value;
       return [dt, dd];

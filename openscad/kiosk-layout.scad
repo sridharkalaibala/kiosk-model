@@ -35,6 +35,7 @@ smps_size = [143, 80, 40];           // 143L x 80W x 40H
 sound_box_size = [115, 113, 97];     // 115L x 113W x 97H
 power_strip_size = [246, 89, 60];    // 246L x 89W x 40-60H
 fan_size = [80, 12, 80];             // 80 x 80 fan, outside rear wall
+mb_plate_size = [2, 190, 190];        // sheet metal plate for motherboard fixing
 
 monitor_24_size = [420, 30, 680];    // visual reference for 24 inch portrait monitor
 
@@ -193,6 +194,36 @@ module direction_labels() {
     label3d("REAR / SERVICE SIDE  Y=box depth", [box_w / 2, box_d + 45, 10], 14);
 }
 
+module motherboard_mount_plate() {
+    plate_pos = [8, 85, 25];
+
+    // Fixed internal sheet-metal plate. Motherboard is screwed to this plate.
+    color([0.35, 0.38, 0.40, 0.75])
+    translate(plate_pos)
+    cube(mb_plate_size);
+
+    label3d(
+        "SHEET METAL MB PLATE\nM3 STANDOFFS",
+        [plate_pos[0] + 8, plate_pos[1] + mb_plate_size[1] / 2, plate_pos[2] + mb_plate_size[2] + 14],
+        9
+    );
+
+    // Four visual standoffs/screw heads. Positions are indicative, not a drill template.
+    for (y = [plate_pos[1] + 22, plate_pos[1] + 168]) {
+        for (z = [plate_pos[2] + 24, plate_pos[2] + 166]) {
+            color("silver")
+            translate([plate_pos[0] + mb_plate_size[0] + 4, y, z])
+            rotate([0, 90, 0])
+            cylinder(h = 8, r = 5);
+
+            color("black")
+            translate([plate_pos[0] + mb_plate_size[0] + 12, y, z])
+            rotate([0, 90, 0])
+            cylinder(h = 2, r = 3);
+        }
+    }
+}
+
 // ---------------------------
 // MODEL
 // ---------------------------
@@ -210,6 +241,9 @@ box_part(
     printer_size,
     printer_color
 );
+
+// Motherboard fixing sheet: fabricate this plate, then screw motherboard onto it.
+motherboard_mount_plate();
 
 // Motherboard: vertical on the left fixed internal plate.
 box_part(
