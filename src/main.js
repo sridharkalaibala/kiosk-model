@@ -1,12 +1,19 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { BOX_PRESETS, COLORS, COMPONENTS, MONITORS, PANEL_FEATURES } from "./config.js";
+import { BOX_PRESETS, COLORS, COMPONENTS, MONITOR_CABLE_PASS, MONITORS, PANEL_FEATURES } from "./config.js";
 
 const viewer = document.querySelector("#viewer");
 const presetSelect = document.querySelector("#preset");
 const monitorSelect = document.querySelector("#monitor");
 const explodeToggle = document.querySelector("#explode");
+const showLabelsToggle = document.querySelector("#show-labels");
+const showMarkersToggle = document.querySelector("#show-markers");
+const showWiresToggle = document.querySelector("#show-wires");
+const showReadoutToggle = document.querySelector("#show-readout");
+const rotateLeftButton = document.querySelector("#rotate-left");
+const rotateRightButton = document.querySelector("#rotate-right");
+const autoRotateToggle = document.querySelector("#auto-rotate");
 const readout = document.querySelector("#readout");
 
 const scene = new THREE.Scene();
@@ -34,6 +41,8 @@ const root = new THREE.Group();
 scene.add(root);
 let activeBox = BOX_PRESETS.compact;
 let activeMonitor = MONITORS["24"];
+let showSceneLabels = false;
+const clock = new THREE.Clock();
 
 scene.add(new THREE.HemisphereLight(0xdcefff, 0x343a40, 2.2));
 const sun = new THREE.DirectionalLight(0xffffff, 2.4);
@@ -88,6 +97,7 @@ function addEdges(mesh) {
 }
 
 function addLabel(group, text, position, zOffset = 0) {
+  if (!showSceneLabels) return null;
   const element = document.createElement("div");
   element.className = "label";
   element.textContent = text;
@@ -128,6 +138,17 @@ function addCylinder(group, name, radius, depth, position, color, rotation = {})
   return mesh;
 }
 
+function addWire(group, name, points, color, radius = 3) {
+  const curve = new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(point.x, point.y, point.z)));
+  const geometry = new THREE.TubeGeometry(curve, 32, radius, 10, false);
+  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.48, metalness: 0.02 });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = name;
+  mesh.castShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
 function addReceiptSlot(group, box, printerCenter) {
   const slot = addBox(
     group,
@@ -143,31 +164,169 @@ function addReceiptSlot(group, box, printerCenter) {
   return slot;
 }
 
+function addFrontDoor(group, box) {
+  const door = {
+    ...PANEL_FEATURES.frontDoor,
+    size: { width: box.width, height: box.height },
+    position: { z: 0 },
+  };
+  const doorCenter = {
+    x: 0,
+    y: -2,
+    z: door.position.z + door.size.height / 2,
+  };
+  addBox(
+    group,
+    "front-paper-loading-door-panel",
+    { width: door.size.width, depth: 3, height: door.size.height },
+    doorCenter,
+    0xb7c5ce,
+    "Full front opening door",
+    0.28,
+    { y: -22, z: 12 },
+  );
+
+  const edgeColor = 0x101316;
+  const halfW = door.size.width / 2;
+  const halfH = door.size.height / 2;
+  addBox(group, "front-door-top-seam", { width: door.size.width, depth: 4, height: 3 }, { x: 0, y: -4, z: doorCenter.z + halfH }, edgeColor, "");
+  addBox(group, "front-door-bottom-seam", { width: door.size.width, depth: 4, height: 3 }, { x: 0, y: -4, z: doorCenter.z - halfH }, edgeColor, "");
+  addBox(group, "front-door-left-seam", { width: 3, depth: 4, height: door.size.height }, { x: -halfW, y: -4, z: doorCenter.z }, edgeColor, "");
+  addBox(group, "front-door-right-seam", { width: 3, depth: 4, height: door.size.height }, { x: halfW, y: -4, z: doorCenter.z }, edgeColor, "");
+
+  for (const z of [55, doorCenter.z, box.height - 55]) {
+    addBox(
+      group,
+      `front-door-hinge-${z}`,
+      { width: 12, depth: 12, height: 34 },
+      { x: -halfW - 7, y: -8, z },
+      0x4b555c,
+      "",
+    );
+  }
+  addBox(
+    group,
+    "front-door-pull-handle",
+    { width: 46, depth: 8, height: 10 },
+    { x: halfW - 58, y: -10, z: 104 },
+    0x2d343a,
+    "",
+  );
+  addLabel(group, "Whole front face opens for paper loading", { x: 0, y: -42, z: box.height + 18 });
+}
+
+function addWireRouting(group, box, centers) {
+  const rearY = box.depth - 28;
+  const grommetX = box.width / 2 - PANEL_FEATURES.extensionWire.position.xOffsetFromRight;
+  const grommetZ = PANEL_FEATURES.extensionWire.position.z;
+
+  addWire(
+    group,
+    "printer-power-wire",
+    [
+      { x: centers.printer.x, y: centers.printer.y + 48, z: centers.printer.z + 20 },
+      { x: 42, y: 170, z: 42 },
+      { x: grommetX, y: rearY, z: grommetZ + 8 },
+    ],
+    0x1f1f1f,
+  );
+  addWire(
+    group,
+    "printer-usb-wire",
+    [
+      { x: centers.printer.x - 30, y: centers.printer.y + 64, z: centers.printer.z + 34 },
+      { x: -28, y: 152, z: 74 },
+      { x: centers.motherboard.x + 8, y: centers.motherboard.y - 20, z: centers.motherboard.z - 36 },
+    ],
+    0x2f8fff,
+    2.4,
+  );
+  addWire(
+    group,
+    "smps-power-wire",
+    [
+      { x: centers.smps.x + 36, y: centers.smps.y - 34, z: centers.smps.z + 14 },
+      { x: grommetX + 16, y: rearY - 14, z: grommetZ + 10 },
+      { x: grommetX, y: box.depth + 18, z: grommetZ },
+    ],
+    0xff4b42,
+    3.2,
+  );
+  addWire(
+    group,
+    "sound-box-wire",
+    [
+      { x: centers.sound.x - 20, y: centers.sound.y + 12, z: centers.sound.z + 18 },
+      { x: 18, y: 112, z: 66 },
+      { x: centers.motherboard.x + 6, y: centers.motherboard.y + 30, z: centers.motherboard.z - 8 },
+    ],
+    0xf2f5f6,
+    2.2,
+  );
+
+  addLabel(group, "Wires route to rear grommet / cable path", {
+    x: grommetX - 32,
+    y: box.depth + 52,
+    z: grommetZ + 46,
+  });
+}
+
 function addPanelHoleMarkers(group, box) {
   const rightX = box.width / 2;
   const power = PANEL_FEATURES.powerButton;
+  const powerX = rightX - power.position.xOffsetFromRight;
   addCylinder(
     group,
     "power-button-hole-marker",
     power.diameter / 2,
     3,
-    { x: rightX + 2, y: power.position.y, z: power.position.z },
+    { x: powerX, y: -8, z: power.position.z },
     0x0b0d0f,
-    { z: Math.PI / 2 },
   );
   addCylinder(
     group,
     "power-button-trim-ring",
     power.diameter / 2 + 4,
     2,
-    { x: rightX + 1, y: power.position.y, z: power.position.z },
+    { x: powerX, y: -9, z: power.position.z },
     0x2f363d,
-    { z: Math.PI / 2 },
   );
   addLabel(group, "19.5 mm power button hole", {
-    x: rightX + 24,
-    y: power.position.y,
+    x: powerX - 20,
+    y: -38,
     z: power.position.z + 28,
+  });
+
+  const lock = PANEL_FEATURES.sideDoorLock;
+  const lockX = rightX - lock.position.xOffsetFromRight;
+  addCylinder(
+    group,
+    "side-door-lock-marker",
+    lock.diameter / 2,
+    3,
+    { x: lockX, y: -8, z: lock.position.z },
+    0x050607,
+  );
+  addCylinder(
+    group,
+    "side-door-lock-trim",
+    lock.diameter / 2 + 4,
+    2,
+    { x: lockX, y: -9, z: lock.position.z },
+    0xd5dde1,
+  );
+  addBox(
+    group,
+    "side-door-lock-key-slot",
+    { width: 3, depth: 2, height: 15 },
+    { x: lockX, y: -13, z: lock.position.z },
+    0x050607,
+    "",
+  );
+  addLabel(group, "Door lock on front edge", {
+    x: lockX - 22,
+    y: -38,
+    z: lock.position.z - 26,
   });
 
   const extension = PANEL_FEATURES.extensionWire;
@@ -179,7 +338,6 @@ function addPanelHoleMarkers(group, box) {
     3,
     { x: extensionX, y: box.depth + 2, z: extension.position.z },
     0x030405,
-    { x: Math.PI / 2 },
   );
   addCylinder(
     group,
@@ -188,7 +346,6 @@ function addPanelHoleMarkers(group, box) {
     5,
     { x: extensionX, y: box.depth + 4, z: extension.position.z },
     0x15191d,
-    { x: Math.PI / 2 },
   );
   addLabel(group, "25 mm wire hole + rubber grommet", {
     x: extensionX,
@@ -442,14 +599,20 @@ function addFanDetail(group, fanCenter, box) {
   }
 }
 
-function addMonitor(group, box, monitor) {
+function addMonitor(group, box, monitor, showWires) {
   const lift = 24;
   const centerZ = box.height + lift + monitor.height / 2;
+  const tiltRadians = THREE.MathUtils.degToRad(MONITOR_CABLE_PASS.tiltDegrees);
+  const monitorGroup = new THREE.Group();
+  monitorGroup.rotation.x = -tiltRadians;
+  monitorGroup.position.set(0, 34, centerZ);
+  group.add(monitorGroup);
+
   const frame = addBox(
-    group,
+    monitorGroup,
     "monitor-frame",
     { width: monitor.width, depth: monitor.depth, height: monitor.height },
-    { x: 0, y: 34, z: centerZ },
+    { x: 0, y: 0, z: 0 },
     COLORS.monitor,
     monitor.label,
     1,
@@ -458,10 +621,10 @@ function addMonitor(group, box, monitor) {
   frame.material.metalness = 0.16;
 
   addBox(
-    group,
+    monitorGroup,
     "monitor-screen",
     { width: monitor.width - 34, depth: 3, height: monitor.height - 44 },
-    { x: 0, y: 16, z: centerZ },
+    { x: 0, y: -18, z: 0 },
     COLORS.screen,
     "",
     0.82,
@@ -470,13 +633,47 @@ function addMonitor(group, box, monitor) {
   addBox(
     group,
     "cable-path",
-    { width: 36, depth: 22, height: box.height + lift + 16 },
+    { width: MONITOR_CABLE_PASS.width, depth: MONITOR_CABLE_PASS.depth, height: box.height + lift + 16 },
     { x: 0, y: box.depth - 44, z: (box.height + lift + 16) / 2 },
     COLORS.cable,
-    "Hidden cable path",
+    "50 mm monitor cable pass-through",
     0.72,
     { x: -52, y: 26, z: 40 },
   );
+
+  if (showWires) {
+    const cableStartZ = box.height + lift + 90;
+    const cableEndZ = box.height - 12;
+    for (const [index, cable] of MONITOR_CABLE_PASS.cables.entries()) {
+      const x = -16 + index * 16;
+      addWire(
+        group,
+        `monitor-${cable.label.toLowerCase().replaceAll(" ", "-")}-cable`,
+        [
+          { x, y: 20, z: cableStartZ },
+          { x, y: box.depth - 44, z: box.height + 36 },
+          { x, y: box.depth - 44, z: cableEndZ },
+        ],
+        cable.color,
+        index === 0 ? 3.5 : 2.6,
+      );
+    }
+    addBox(
+      group,
+      "monitor-power-plug-clearance-gauge",
+      { width: MONITOR_CABLE_PASS.plugHeadWidth, depth: 18, height: 24 },
+      { x: -30, y: box.depth - 44, z: box.height + 18 },
+      0xff4b42,
+      "40 mm power plug head clearance",
+      0.65,
+      { x: -26, y: 12, z: 6 },
+    );
+  }
+  addLabel(group, `${MONITOR_CABLE_PASS.tiltDegrees} degree monitor tilt visual`, {
+    x: monitor.width / 2 - 70,
+    y: 6,
+    z: centerZ + monitor.height / 2 + 24,
+  });
 }
 
 function buildScene() {
@@ -485,7 +682,10 @@ function buildScene() {
   const monitor = MONITORS[monitorSelect.value];
   activeBox = box;
   activeMonitor = monitor;
+  showSceneLabels = showLabelsToggle.checked;
   const separated = explodeToggle.checked ? 18 : 0;
+  const showMarkers = showMarkersToggle.checked;
+  const showWires = showWiresToggle.checked;
 
   const floorZ = 2;
   const innerWallGap = 8;
@@ -502,7 +702,10 @@ function buildScene() {
     `Bottom box ${box.width}W x ${box.depth}D x ${box.height}H`,
     0.2,
   );
-  addPanelHoleMarkers(root, box);
+  if (showMarkers) {
+    addFrontDoor(root, box);
+    addPanelHoleMarkers(root, box);
+  }
 
   // Thermal printer: actual 145W x 180D x 130H, front-aligned at Y = 0.
   const printer = COMPONENTS.printer;
@@ -517,6 +720,11 @@ function buildScene() {
   // Motherboard: vertical on fixed left internal plate; top-view footprint 50W x 170D.
   const motherboard = COMPONENTS.motherboard;
   const platePosition = { x: leftX + innerWallGap + separated, y: 118, z: 106 };
+  const motherboardCenter = {
+    x: leftX + innerWallGap + motherboard.size.width / 2 + separated,
+    y: 118,
+    z: 96,
+  };
   addBox(
     root,
     "motherboard-left-plate",
@@ -532,17 +740,13 @@ function buildScene() {
     root,
     "motherboard",
     motherboard.size,
-    { x: leftX + innerWallGap + motherboard.size.width / 2 + separated, y: 118, z: 96 },
+    motherboardCenter,
     motherboard.color,
     motherboard.label,
     1,
     { x: -72, y: 20, z: -20 },
   );
-  addMotherboardDetails(root, {
-    x: leftX + innerWallGap + motherboard.size.width / 2 + separated,
-    y: 118,
-    z: 96,
-  });
+  addMotherboardDetails(root, motherboardCenter);
 
   // SMPS: rear/right, close to exhaust fan.
   const smps = COMPONENTS.smps;
@@ -573,6 +777,14 @@ function buildScene() {
     { x: -42, y: -20 },
   );
   addSoundBoxDetails(root, soundCenter, sound.size);
+  if (showWires) {
+    addWireRouting(root, box, {
+      printer: printerCenter,
+      motherboard: motherboardCenter,
+      smps: smpsCenter,
+      sound: soundCenter,
+    });
+  }
 
   // Power strip: mounted to rear upper inner wall, not placed on the floor.
   const strip = COMPONENTS.powerStrip;
@@ -608,14 +820,18 @@ function buildScene() {
   addFanDetail(root, fanCenter, box);
 
   // Monitor frame and hidden wiring route above the bottom box.
-  addMonitor(root, box, monitor);
+  addMonitor(root, box, monitor, showWires);
 
   // Front/rear direction markers and airflow.
-  addLabel(root, "FRONT / CUSTOMER  Y=0", { x: 0, y: -52, z: 18 });
-  addLabel(root, "REAR / SERVICE  Y=box depth", { x: 0, y: box.depth + 66, z: 18 });
-  addArrow(root, { x: -box.width / 2 - 80, y: 62, z: 70 }, { x: -box.width / 2 - 8, y: 62, z: 70 }, COLORS.intake, "Blue intake");
-  addArrow(root, { x: -20, y: -82, z: 56 }, { x: -20, y: 4, z: 56 }, COLORS.intake, "Blue intake");
-  addArrow(root, { x: fanCenter.x, y: box.depth - 18, z: fanCenter.z }, { x: fanCenter.x, y: box.depth + 118, z: fanCenter.z }, COLORS.exhaust, "Red exhaust");
+  if (showMarkers) {
+    addLabel(root, "FRONT / CUSTOMER  Y=0", { x: 0, y: -52, z: 18 });
+    addLabel(root, "REAR / SERVICE  Y=box depth", { x: 0, y: box.depth + 66, z: 18 });
+  }
+  if (showWires) {
+    addArrow(root, { x: -box.width / 2 - 80, y: 62, z: 70 }, { x: -box.width / 2 - 8, y: 62, z: 70 }, COLORS.intake, "Blue intake");
+    addArrow(root, { x: -20, y: -82, z: 56 }, { x: -20, y: 4, z: 56 }, COLORS.intake, "Blue intake");
+    addArrow(root, { x: fanCenter.x, y: box.depth - 18, z: fanCenter.z }, { x: fanCenter.x, y: box.depth + 118, z: fanCenter.z }, COLORS.exhaust, "Red exhaust");
+  }
 
   addFloorGrid(box, monitor);
   updateReadout(box, monitor);
@@ -630,6 +846,7 @@ function addFloorGrid(box, monitor) {
 }
 
 function updateReadout(box, monitor) {
+  readout.hidden = !showReadoutToggle.checked;
   const rows = [
     ["Box", `${box.width}W x ${box.depth}D x ${box.height}H mm`, COLORS.box],
     ["Printer", "145W x 180D x 130H mm", COMPONENTS.printer.color],
@@ -637,8 +854,14 @@ function updateReadout(box, monitor) {
     ["SMPS", "143L x 80W x 40H mm", COMPONENTS.smps.color],
     ["Sound", "115L x 113W x 97H mm", COMPONENTS.soundBox.color],
     ["Power strip", COMPONENTS.powerStrip.actual, COMPONENTS.powerStrip.color],
-    ["Power button hole", "19.5 mm round, right side panel", 0x2f363d],
+    ["Front door", `Full ${box.width}W x ${box.height}H mm opening`, 0xb7c5ce],
+    ["Door lock", "Front/right edge, below monitor", 0xd5dde1],
+    ["Wire routing", "Simulated cables to rear grommet + board", 0x3b3f45],
+    ["Power button hole", "19.5 mm round, front below monitor", 0x2f363d],
     ["Wire grommet hole", "25 mm round, rear/right bottom", 0x15191d],
+    ["Monitor cable pass", "50 mm wide for 40 mm power plug", COLORS.cable],
+    ["Monitor cables", "Power + HDMI + USB touch into box", 0x2f8fff],
+    ["Monitor tilt", `${MONITOR_CABLE_PASS.tiltDegrees} degree visual reference`, COLORS.monitor],
     ["Monitor ref", `${monitor.width}W x ${monitor.height}H mm`, COLORS.screen],
   ];
   readout.replaceChildren(
@@ -678,15 +901,34 @@ function fitCamera(enableTransition = true) {
 }
 
 function animate() {
+  const delta = clock.getDelta();
+  if (autoRotateToggle.checked) {
+    rotateView(delta * 0.45);
+  }
   controls.update();
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
 
+function rotateView(angleRadians) {
+  const offset = camera.position.clone().sub(controls.target);
+  offset.applyAxisAngle(new THREE.Vector3(0, 0, 1), angleRadians);
+  camera.position.copy(controls.target).add(offset);
+  camera.lookAt(controls.target);
+}
+
 presetSelect.addEventListener("change", buildScene);
 monitorSelect.addEventListener("change", buildScene);
 explodeToggle.addEventListener("change", buildScene);
+showLabelsToggle.addEventListener("change", buildScene);
+showMarkersToggle.addEventListener("change", buildScene);
+showWiresToggle.addEventListener("change", buildScene);
+showReadoutToggle.addEventListener("change", () => {
+  readout.hidden = !showReadoutToggle.checked;
+});
+rotateLeftButton.addEventListener("click", () => rotateView(THREE.MathUtils.degToRad(45)));
+rotateRightButton.addEventListener("click", () => rotateView(THREE.MathUtils.degToRad(-45)));
 window.addEventListener("resize", resize);
 
 buildScene();

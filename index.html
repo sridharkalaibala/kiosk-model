@@ -30,6 +30,33 @@
           <input id="explode" type="checkbox" />
           Slightly separate parts
         </label>
+        <label class="check">
+          <input id="show-labels" type="checkbox" />
+          Show 3D labels
+        </label>
+        <label class="check">
+          <input id="show-markers" type="checkbox" checked />
+          Show door / hole markers
+        </label>
+        <label class="check">
+          <input id="show-wires" type="checkbox" checked />
+          Show airflow / wires
+        </label>
+        <label class="check">
+          <input id="show-readout" type="checkbox" checked />
+          Show measurements list
+        </label>
+        <div class="control-group" aria-label="Rotation controls">
+          <span>Rotate view</span>
+          <div class="button-row">
+            <button id="rotate-left" type="button">Left 45</button>
+            <button id="rotate-right" type="button">Right 45</button>
+          </div>
+          <label class="check">
+            <input id="auto-rotate" type="checkbox" />
+            Auto rotate 360
+          </label>
+        </div>
         <dl id="readout"></dl>
       </aside>
     </main>
@@ -45,4 +72,3 @@
     <script type="module" src="src/main.js"></script>
   </body>
 </html>
-

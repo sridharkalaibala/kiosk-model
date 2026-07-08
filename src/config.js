@@ -9,6 +9,18 @@ export const MONITORS = {
   "15": { width: 230, height: 390, depth: 30, label: "15 inch monitor" },
 };
 
+export const MONITOR_CABLE_PASS = {
+  width: 50,
+  depth: 28,
+  plugHeadWidth: 40,
+  tiltDegrees: 10,
+  cables: [
+    { label: "Power", color: 0xff4b42 },
+    { label: "HDMI", color: 0x2f8fff },
+    { label: "USB touch", color: 0x65c38d },
+  ],
+};
+
 export const COMPONENTS = {
   // Actual 145W x 180D x 130H mm.
   printer: {
@@ -64,10 +76,19 @@ export const COLORS = {
 };
 
 export const PANEL_FEATURES = {
+  frontDoor: {
+    label: "Full front opening door",
+    lockDiameter: 19,
+  },
   powerButton: {
     label: "Power button hole",
     diameter: 19.5,
-    position: { y: 75, z: 170 },
+    position: { xOffsetFromRight: 42, z: 172 },
+  },
+  sideDoorLock: {
+    label: "Front door lock",
+    diameter: 19,
+    position: { xOffsetFromRight: 42, z: 130 },
   },
   extensionWire: {
     label: "Extension wire grommet hole",

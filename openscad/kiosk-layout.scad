@@ -13,6 +13,8 @@ show_body = false;         // false gives a clear inside-box inspection view
 show_monitor = true;
 show_airflow = true;
 show_labels = true;
+show_panel_markers = true;
+show_simulated_wires = true;
 
 // ---------------------------
 // MAIN DIMENSIONS
@@ -36,10 +38,18 @@ sound_box_size = [115, 113, 97];     // 115L x 113W x 97H
 power_strip_size = [246, 89, 60];    // 246L x 89W x 40-60H
 fan_size = [80, 12, 80];             // 80 x 80 fan, outside rear wall
 mb_plate_size = [2, 190, 190];        // sheet metal plate for motherboard fixing
-power_button_hole_d = 19.5;           // right side panel round hole
+front_door_lock_d = 19;               // visual lock/cam marker on front/right edge
+power_button_hole_d = 19.5;           // front face round hole below monitor
+front_control_x = box_w - 42;         // lock and power button near right edge
+front_power_button_z = 172;
+front_door_lock_z = 130;
 extension_wire_hole_d = 25;           // rear/right bottom cable hole with rubber grommet
 
 monitor_24_size = [420, 30, 680];    // visual reference for 24 inch portrait monitor
+monitor_tilt_deg = 10;                // visual reference tilt
+monitor_cable_pass_w = 50;            // wide enough for 40 mm power plug head
+monitor_cable_pass_d = 28;
+monitor_power_plug_head_w = 40;
 
 // ---------------------------
 // COLORS
@@ -87,9 +97,9 @@ module hollow_body() {
             cube([box_w - 2 * wall, box_d - 2 * wall, box_h - wall]);
         }
 
-        // 19.5 mm power button hole on right side panel.
-        translate([box_w - wall / 2, 75, 170])
-        rotate([0, 90, 0])
+        // 19.5 mm power button hole on front face below monitor.
+        translate([front_control_x, -wall / 2, front_power_button_z])
+        rotate([90, 0, 0])
         cylinder(h = wall + 4, d = power_button_hole_d, center = true);
 
         // 25 mm rear/right bottom extension wire hole.
@@ -130,14 +140,97 @@ module front_receipt_slot() {
     cube([120, 4, 18]);
 }
 
+module front_paper_loading_door() {
+    seam = 2;
+
+    // Whole front customer face opens for printer paper loading.
+    color([0.70, 0.78, 0.82, 0.35])
+    translate([0, -2, 0])
+    cube([box_w, 2, box_h]);
+
+    color("black") {
+        translate([0, -4, 0]) cube([box_w, seam, seam]);
+        translate([0, -4, box_h]) cube([box_w, seam, seam]);
+        translate([0, -4, 0]) cube([seam, seam, box_h]);
+        translate([box_w, -4, 0]) cube([seam, seam, box_h]);
+    }
+
+    // Hinges on left side of front door.
+    color([0.25, 0.28, 0.30, 1])
+    for (z = [55, box_h / 2, box_h - 55]) {
+        translate([-10, -8, z])
+        cube([12, 8, 34]);
+    }
+
+    color([0.15, 0.17, 0.18, 1])
+    translate([box_w - 104, -10, 104])
+    cube([46, 8, 10]);
+
+    label3d(
+        "WHOLE FRONT FACE OPENS\nFOR PAPER LOADING",
+        [box_w / 2, -32, box_h + 18],
+        9
+    );
+}
+
+module wire_run(points, col, radius = 2.5) {
+    color(col)
+    for (i = [0 : len(points) - 2]) {
+        hull() {
+            translate(points[i]) sphere(r = radius);
+            translate(points[i + 1]) sphere(r = radius);
+        }
+    }
+}
+
+module simulated_wires() {
+    grommet = [box_w - 55, box_d + 6, 45];
+
+    // Printer power to rear grommet.
+    wire_run([[150, 120, 78], [225, 175, 50], grommet], "black", 3);
+
+    // Printer USB/control to motherboard.
+    wire_run([[120, 140, 95], [85, 130, 90], [36, 150, 88]], "blue", 2.2);
+
+    // SMPS mains/output cable to grommet.
+    wire_run([[300, 212, 36], [318, 260, 52], grommet], "red", 3);
+
+    // Monitor power/HDMI/touch bundle down to motherboard area.
+    wire_run([[box_w / 2, box_d - 10, box_h + 40], [box_w / 2, box_d - 20, 155], [42, 175, 125]], "green", 2.4);
+    wire_run([[box_w / 2 + 18, box_d - 10, box_h + 40], [box_w / 2 + 12, box_d - 25, 145], [42, 160, 105]], "blue", 2.4);
+    wire_run([[box_w / 2 - 18, box_d - 10, box_h + 40], [box_w / 2 - 12, box_d - 30, 135], [42, 145, 85]], "red", 2.4);
+
+    // Sound box wire to motherboard.
+    wire_run([[270, 84, 72], [150, 100, 68], [46, 150, 72]], "white", 2);
+
+    label3d("SIMULATED WIRE ROUTING\nTO REAR GROMMET + MOTHERBOARD", [box_w - 70, box_d + 42, 96], 8);
+}
+
 module panel_hole_markers() {
-    // Power button hole marker on right side panel.
+    // Power button hole marker on front face below monitor.
     color("black")
-    translate([box_w + 1, 75, 170])
-    rotate([0, 90, 0])
+    translate([front_control_x, -3, front_power_button_z])
+    rotate([90, 0, 0])
     cylinder(h = 2, d = power_button_hole_d);
 
-    label3d("POWER BUTTON\n19.5mm HOLE", [box_w + 2, 75, 196], 8);
+    label3d("POWER BUTTON\n19.5mm FRONT HOLE", [front_control_x, -35, front_power_button_z + 26], 8);
+
+    // Door lock/key on front/right edge, close to power button.
+    color("silver")
+    translate([front_control_x, -3, front_door_lock_z])
+    rotate([90, 0, 0])
+    cylinder(h = 3, d = front_door_lock_d + 8);
+
+    color("black")
+    translate([front_control_x, -6, front_door_lock_z])
+    rotate([90, 0, 0])
+    cylinder(h = 2, d = front_door_lock_d);
+
+    color("black")
+    translate([front_control_x - 1.5, -10, front_door_lock_z - 8])
+    cube([3, 2, 16]);
+
+    label3d("FRONT DOOR LOCK\nFRONT/RIGHT EDGE", [front_control_x, -35, front_door_lock_z - 30], 8);
 
     // Rear/right bottom extension wire hole with rubber grommet.
     color("black")
@@ -178,16 +271,26 @@ module fan_80mm() {
 }
 
 module monitor_cable_path() {
-    // Hidden path for monitor power, HDMI, and USB touch.
+    // 50 mm pass-through for monitor power, HDMI, and USB touch.
+    color([0.20, 0.22, 0.25, 0.7])
+    translate([box_w / 2 - monitor_cable_pass_w / 2, box_d - 14, box_h])
+    cube([monitor_cable_pass_w, monitor_cable_pass_d, 120]);
+
+    // Visual 40 mm power plug head clearance.
+    color("red")
+    translate([box_w / 2 - monitor_power_plug_head_w / 2 - 18, box_d - 18, box_h + 18])
+    cube([monitor_power_plug_head_w, 18, 24]);
+
+    // Three actual cable routes: power, HDMI, USB touch.
     for (i = [0:2]) {
         color(cable_colors[i])
-        translate([box_w / 2 - 18 + i * 18, box_d - 12, box_h])
-        cube([12, 12, 110]);
+        translate([box_w / 2 - 16 + i * 16, box_d - 20, box_h])
+        cube([7, 7, 135]);
     }
 
     label3d(
-        "3 cables to monitor:\nPower + HDMI + USB Touch",
-        [box_w / 2, box_d + 20, box_h + 120],
+        "50mm MONITOR CABLE PASS\n40mm POWER PLUG CLEARANCE\nPOWER + HDMI + USB TOUCH",
+        [box_w / 2, box_d + 24, box_h + 142],
         12
     );
 }
@@ -197,20 +300,23 @@ module monitor_frame() {
     monitor_t = monitor_24_size[1];
     monitor_h = monitor_24_size[2];
 
-    // Upright vertical monitor frame for visual proportion only.
-    color([0.15, 0.15, 0.15, 0.35])
-    translate([(box_w - monitor_w) / 2, -10, box_h + 40])
-    cube(monitor_24_size);
+    // Monitor frame with 10 degree visual tilt for clearance/reference.
+    translate([box_w / 2, -10, box_h + 40])
+    rotate([monitor_tilt_deg, 0, 0]) {
+        color([0.15, 0.15, 0.15, 0.35])
+        translate([-monitor_w / 2, 0, 0])
+        cube(monitor_24_size);
 
-    color([0.02, 0.02, 0.02, 0.8])
-    translate([(box_w - 330) / 2, -13, box_h + 90])
-    cube([330, 5, 560]);
+        color([0.02, 0.02, 0.02, 0.8])
+        translate([-330 / 2, -3, 50])
+        cube([330, 5, 560]);
+    }
 
     color("black")
     translate([box_w / 2, -30, box_h + monitor_h + 80])
     rotate([90, 0, 0])
     linear_extrude(height = 1)
-    text("VERTICAL MONITOR FRAME\n15 / 21.5 / 24 inch", size = 18, halign = "center");
+    text("MONITOR FRAME\n10 DEGREE TILT VISUAL\n15 / 21.5 / 24 inch", size = 18, halign = "center");
 }
 
 module airflow_arrow(pos, rot, col, name) {
@@ -272,9 +378,11 @@ module motherboard_mount_plate() {
 // Outer bottom system box. Hide this for a clear inside-box inspection view.
 if (show_body) hollow_body();
 if (!show_body) body_outline();
+if (show_panel_markers) front_paper_loading_door();
 front_receipt_slot();
-panel_hole_markers();
+if (show_panel_markers) panel_hole_markers();
 fan_80mm();
+if (show_simulated_wires) simulated_wires();
 
 // Thermal printer: front-aligned so its front face is at Y = 0.
 box_part(
