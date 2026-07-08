@@ -35,10 +35,6 @@
           Show 3D labels
         </label>
         <label class="check">
-          <input id="show-markers" type="checkbox" checked />
-          Show door / hole markers
-        </label>
-        <label class="check">
           <input id="show-wires" type="checkbox" checked />
           Show airflow / wires
         </label>
@@ -47,10 +43,13 @@
           Show measurements list
         </label>
         <div class="control-group" aria-label="Rotation controls">
-          <span>Rotate view</span>
-          <div class="button-row">
-            <button id="rotate-left" type="button">Left 45</button>
-            <button id="rotate-right" type="button">Right 45</button>
+          <span>Orbit view</span>
+          <div class="orbit-pad" aria-label="Orbit view controls">
+            <button id="orbit-up" class="orbit-btn orbit-up" type="button" aria-label="Rotate up"></button>
+            <button id="orbit-left" class="orbit-btn orbit-left" type="button" aria-label="Rotate left"></button>
+            <button id="orbit-reset" class="orbit-btn orbit-reset" type="button" aria-label="Reset view"></button>
+            <button id="orbit-right" class="orbit-btn orbit-right" type="button" aria-label="Rotate right"></button>
+            <button id="orbit-down" class="orbit-btn orbit-down" type="button" aria-label="Rotate down"></button>
           </div>
           <label class="check">
             <input id="auto-rotate" type="checkbox" />

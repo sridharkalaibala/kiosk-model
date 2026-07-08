@@ -10,10 +10,10 @@ export const MONITORS = {
 };
 
 export const MONITOR_CABLE_PASS = {
-  width: 50,
-  depth: 28,
+  diameter: 50,
   plugHeadWidth: 40,
   tiltDegrees: 10,
+  position: { x: 0, y: 34 },
   cables: [
     { label: "Power", color: 0xff4b42 },
     { label: "HDMI", color: 0x2f8fff },
@@ -51,14 +51,14 @@ export const COMPONENTS = {
   // Actual 246L x 89W x 40-60H mm, mounted on rear wall.
   // Width is horizontal, depth projects inward, height is the 40-60 mm range.
   powerStrip: {
-    label: "Power strip on rear wall",
+    label: "Power strip on right inner wall",
     size: { width: 246, depth: 89, height: 60 },
     actual: "246L x 89W x 40-60H mm",
     color: 0xf06f6f,
   },
-  // 80 x 80 mm fan shown outside the rear/right wall.
+  // 80 x 80 mm fan shown outside the right wall near SMPS.
   fan: {
-    label: "External 80 mm exhaust fan",
+    label: "Right-side 80 mm exhaust fan",
     size: { width: 80, depth: 18, height: 80 },
     color: 0xe14b4b,
   },
@@ -83,16 +83,17 @@ export const PANEL_FEATURES = {
   powerButton: {
     label: "Power button hole",
     diameter: 19.5,
-    position: { xOffsetFromRight: 42, z: 172 },
+    position: { y: 28, z: 172 },
   },
   sideDoorLock: {
     label: "Front door lock",
     diameter: 19,
-    position: { xOffsetFromRight: 42, z: 130 },
+    position: { y: 28, z: 130 },
   },
   extensionWire: {
-    label: "Extension wire grommet hole",
-    diameter: 25,
-    position: { xOffsetFromRight: 55, z: 45 },
+    label: "Extension plug pass-through via right control opening",
+    diameter: 50,
+    plugHeadWidth: 40,
+    position: { y: 28, z: 82 },
   },
 };

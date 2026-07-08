@@ -8,11 +8,13 @@ const presetSelect = document.querySelector("#preset");
 const monitorSelect = document.querySelector("#monitor");
 const explodeToggle = document.querySelector("#explode");
 const showLabelsToggle = document.querySelector("#show-labels");
-const showMarkersToggle = document.querySelector("#show-markers");
 const showWiresToggle = document.querySelector("#show-wires");
 const showReadoutToggle = document.querySelector("#show-readout");
-const rotateLeftButton = document.querySelector("#rotate-left");
-const rotateRightButton = document.querySelector("#rotate-right");
+const orbitUpButton = document.querySelector("#orbit-up");
+const orbitLeftButton = document.querySelector("#orbit-left");
+const orbitResetButton = document.querySelector("#orbit-reset");
+const orbitRightButton = document.querySelector("#orbit-right");
+const orbitDownButton = document.querySelector("#orbit-down");
 const autoRotateToggle = document.querySelector("#auto-rotate");
 const readout = document.querySelector("#readout");
 
@@ -20,6 +22,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x15191f);
 
 const camera = new THREE.PerspectiveCamera(42, 1, 1, 3000);
+camera.up.set(0, 0, 1);
 camera.position.set(520, -780, 560);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -36,6 +39,7 @@ viewer.appendChild(labelRenderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target.set(0, 150, 220);
+controls.screenSpacePanning = false;
 
 const root = new THREE.Group();
 scene.add(root);
@@ -43,6 +47,8 @@ let activeBox = BOX_PRESETS.compact;
 let activeMonitor = MONITORS["24"];
 let showSceneLabels = false;
 const clock = new THREE.Clock();
+const orbitVelocity = { azimuth: 0, elevation: 0 };
+const orbitHoldSpeed = 0.85;
 
 scene.add(new THREE.HemisphereLight(0xdcefff, 0x343a40, 2.2));
 const sun = new THREE.DirectionalLight(0xffffff, 2.4);
@@ -217,8 +223,9 @@ function addFrontDoor(group, box) {
 
 function addWireRouting(group, box, centers) {
   const rearY = box.depth - 28;
-  const grommetX = box.width / 2 - PANEL_FEATURES.extensionWire.position.xOffsetFromRight;
-  const grommetZ = PANEL_FEATURES.extensionWire.position.z;
+  const passX = box.width / 2;
+  const passY = PANEL_FEATURES.extensionWire.position.y;
+  const passZ = PANEL_FEATURES.extensionWire.position.z;
 
   addWire(
     group,
@@ -226,7 +233,7 @@ function addWireRouting(group, box, centers) {
     [
       { x: centers.printer.x, y: centers.printer.y + 48, z: centers.printer.z + 20 },
       { x: 42, y: 170, z: 42 },
-      { x: grommetX, y: rearY, z: grommetZ + 8 },
+      { x: passX - 6, y: passY, z: passZ + 8 },
     ],
     0x1f1f1f,
   );
@@ -246,8 +253,8 @@ function addWireRouting(group, box, centers) {
     "smps-power-wire",
     [
       { x: centers.smps.x + 36, y: centers.smps.y - 34, z: centers.smps.z + 14 },
-      { x: grommetX + 16, y: rearY - 14, z: grommetZ + 10 },
-      { x: grommetX, y: box.depth + 18, z: grommetZ },
+      { x: passX - 12, y: passY, z: passZ + 10 },
+      { x: passX + 18, y: passY, z: passZ },
     ],
     0xff4b42,
     3.2,
@@ -264,92 +271,77 @@ function addWireRouting(group, box, centers) {
     2.2,
   );
 
-  addLabel(group, "Wires route to rear grommet / cable path", {
-    x: grommetX - 32,
-    y: box.depth + 52,
-    z: grommetZ + 46,
+  addLabel(group, "Wires route to plug pass-through / board", {
+    x: passX + 26,
+    y: passY,
+    z: passZ + 46,
   });
 }
 
 function addPanelHoleMarkers(group, box) {
   const rightX = box.width / 2;
   const power = PANEL_FEATURES.powerButton;
-  const powerX = rightX - power.position.xOffsetFromRight;
   addCylinder(
     group,
     "power-button-hole-marker",
     power.diameter / 2,
     3,
-    { x: powerX, y: -8, z: power.position.z },
+    { x: rightX + 2, y: power.position.y, z: power.position.z },
     0x0b0d0f,
+    { z: Math.PI / 2 },
   );
   addCylinder(
     group,
     "power-button-trim-ring",
     power.diameter / 2 + 4,
     2,
-    { x: powerX, y: -9, z: power.position.z },
+    { x: rightX + 1, y: power.position.y, z: power.position.z },
     0x2f363d,
+    { z: Math.PI / 2 },
   );
   addLabel(group, "19.5 mm power button hole", {
-    x: powerX - 20,
-    y: -38,
+    x: rightX + 24,
+    y: power.position.y,
     z: power.position.z + 28,
   });
 
   const lock = PANEL_FEATURES.sideDoorLock;
-  const lockX = rightX - lock.position.xOffsetFromRight;
   addCylinder(
     group,
     "side-door-lock-marker",
     lock.diameter / 2,
     3,
-    { x: lockX, y: -8, z: lock.position.z },
+    { x: rightX + 2, y: lock.position.y, z: lock.position.z },
     0x050607,
+    { z: Math.PI / 2 },
   );
   addCylinder(
     group,
     "side-door-lock-trim",
     lock.diameter / 2 + 4,
     2,
-    { x: lockX, y: -9, z: lock.position.z },
+    { x: rightX + 1, y: lock.position.y, z: lock.position.z },
     0xd5dde1,
+    { z: Math.PI / 2 },
   );
   addBox(
     group,
     "side-door-lock-key-slot",
-    { width: 3, depth: 2, height: 15 },
-    { x: lockX, y: -13, z: lock.position.z },
+    { width: 2, depth: 3, height: 15 },
+    { x: rightX + 4, y: lock.position.y, z: lock.position.z },
     0x050607,
     "",
   );
-  addLabel(group, "Door lock on front edge", {
-    x: lockX - 22,
-    y: -38,
+  addLabel(group, "Door lock near front edge", {
+    x: rightX + 24,
+    y: lock.position.y,
     z: lock.position.z - 26,
   });
 
   const extension = PANEL_FEATURES.extensionWire;
-  const extensionX = rightX - extension.position.xOffsetFromRight;
-  addCylinder(
-    group,
-    "extension-wire-hole-marker",
-    extension.diameter / 2,
-    3,
-    { x: extensionX, y: box.depth + 2, z: extension.position.z },
-    0x030405,
-  );
-  addCylinder(
-    group,
-    "extension-wire-rubber-grommet",
-    extension.diameter / 2 + 5,
-    5,
-    { x: extensionX, y: box.depth + 4, z: extension.position.z },
-    0x15191d,
-  );
-  addLabel(group, "25 mm wire hole + rubber grommet", {
-    x: extensionX,
-    y: box.depth + 34,
+  addLabel(group, "Extension plug uses right-side control opening", {
+    x: rightX + 26,
+    y: extension.position.y,
     z: extension.position.z + 28,
   });
 }
@@ -521,15 +513,7 @@ function addSmpsDetails(group, center, size) {
 }
 
 function addSoundBoxDetails(group, center, size) {
-  addBox(
-    group,
-    "sound-box-sealed-badge",
-    { width: size.width - 18, depth: 4, height: 18 },
-    { x: center.x, y: center.y - size.depth / 2 - 2, z: center.z + 18 },
-    0x0f2b52,
-    "",
-    1,
-  );
+  // Intentionally no grille/badge: sound box is internal only.
 }
 
 function addPowerStripDetails(group, center, size) {
@@ -539,14 +523,15 @@ function addPowerStripDetails(group, center, size) {
       `power-strip-socket-${i}`,
       10,
       4,
-      { x: center.x + i * 42, y: center.y - size.depth / 2 - 2, z: center.z + 2 },
+      { x: center.x - size.width / 2 - 2, y: center.y + i * 36, z: center.z + 2 },
       0x2a1f13,
+      { z: Math.PI / 2 },
     );
     addBox(
       group,
       `power-strip-slot-a-${i}`,
       { width: 3, depth: 2, height: 12 },
-      { x: center.x + i * 42 - 4, y: center.y - size.depth / 2 - 5, z: center.z + 2 },
+      { x: center.x - size.width / 2 - 5, y: center.y + i * 36 - 4, z: center.z + 2 },
       0x0d0d0d,
       "",
     );
@@ -554,7 +539,7 @@ function addPowerStripDetails(group, center, size) {
       group,
       `power-strip-slot-b-${i}`,
       { width: 3, depth: 2, height: 12 },
-      { x: center.x + i * 42 + 4, y: center.y - size.depth / 2 - 5, z: center.z + 2 },
+      { x: center.x - size.width / 2 - 5, y: center.y + i * 36 + 4, z: center.z + 2 },
       0x0d0d0d,
       "",
     );
@@ -563,7 +548,7 @@ function addPowerStripDetails(group, center, size) {
     group,
     "power-strip-cable-tail",
     { width: 16, depth: 18, height: 10 },
-    { x: center.x + size.width / 2 - 8, y: center.y + size.depth / 2 + 4, z: center.z - 12 },
+    { x: center.x + 8, y: center.y + size.depth / 2 - 8, z: center.z - 12 },
     0x1c1c1c,
     "",
   );
@@ -573,8 +558,8 @@ function addFanDetail(group, fanCenter, box) {
   const ringGeometry = new THREE.TorusGeometry(33, 2.8, 12, 72);
   const ringMaterial = new THREE.MeshStandardMaterial({ color: 0x2c3137, roughness: 0.55 });
   const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-  ring.position.set(fanCenter.x, box.depth + 20, fanCenter.z);
-  ring.rotation.x = Math.PI / 2;
+  ring.position.set(box.width / 2 + 20, fanCenter.y, fanCenter.z);
+  ring.rotation.y = Math.PI / 2;
   group.add(ring);
 
   const hub = new THREE.Mesh(
@@ -582,7 +567,7 @@ function addFanDetail(group, fanCenter, box) {
     new THREE.MeshStandardMaterial({ color: 0x191c20 }),
   );
   hub.position.copy(ring.position);
-  hub.rotation.x = Math.PI / 2;
+  hub.rotation.y = Math.PI / 2;
   group.add(hub);
 
   for (let i = 0; i < 4; i += 1) {
@@ -590,11 +575,11 @@ function addFanDetail(group, fanCenter, box) {
       group,
       `fan-blade-${i}`,
       { width: 9, depth: 4, height: 30 },
-      { x: fanCenter.x, y: box.depth + 21, z: fanCenter.z + 18 },
+      { x: box.width / 2 + 21, y: fanCenter.y, z: fanCenter.z + 18 },
       0x20252b,
       "",
     );
-    blade.rotation.y = (Math.PI / 2) * i;
+    blade.rotation.x = (Math.PI / 2) * i;
     blade.rotation.z = Math.PI / 9;
   }
 }
@@ -603,6 +588,30 @@ function addMonitor(group, box, monitor, showWires) {
   const lift = 24;
   const centerZ = box.height + lift + monitor.height / 2;
   const tiltRadians = THREE.MathUtils.degToRad(MONITOR_CABLE_PASS.tiltDegrees);
+
+  addBox(
+    group,
+    "monitor-bottom-mounting-plate",
+    { width: box.width, depth: 48, height: 8 },
+    { x: 0, y: 24, z: box.height + 4 },
+    0x8f9da6,
+    "Flat monitor mounting plate",
+    0.78,
+    { x: -76, y: -18, z: 8 },
+  );
+  for (const x of [-box.width / 2 + 34, box.width / 2 - 34]) {
+    for (const y of [10, 38]) {
+      addCylinder(
+        group,
+        `monitor-plate-screw-${x}-${y}`,
+        4,
+        4,
+        { x, y, z: box.height + 10 },
+        0x20262c,
+      );
+    }
+  }
+
   const monitorGroup = new THREE.Group();
   monitorGroup.rotation.x = -tiltRadians;
   monitorGroup.position.set(0, 34, centerZ);
@@ -630,16 +639,20 @@ function addMonitor(group, box, monitor, showWires) {
     0.82,
   );
 
-  addBox(
+  addCylinder(
     group,
-    "cable-path",
-    { width: MONITOR_CABLE_PASS.width, depth: MONITOR_CABLE_PASS.depth, height: box.height + lift + 16 },
-    { x: 0, y: box.depth - 44, z: (box.height + lift + 16) / 2 },
-    COLORS.cable,
-    "50 mm monitor cable pass-through",
-    0.72,
-    { x: -52, y: 26, z: 40 },
+    "monitor-cable-hole-round-edge",
+    MONITOR_CABLE_PASS.diameter / 2,
+    6,
+    { x: MONITOR_CABLE_PASS.position.x, y: MONITOR_CABLE_PASS.position.y, z: box.height + 4 },
+    0x050607,
+    { x: Math.PI / 2 },
   );
+  addLabel(group, "50 mm round monitor cable hole", {
+    x: MONITOR_CABLE_PASS.position.x - 58,
+    y: MONITOR_CABLE_PASS.position.y + 8,
+    z: box.height + 28,
+  });
 
   if (showWires) {
     const cableStartZ = box.height + lift + 90;
@@ -651,8 +664,8 @@ function addMonitor(group, box, monitor, showWires) {
         `monitor-${cable.label.toLowerCase().replaceAll(" ", "-")}-cable`,
         [
           { x, y: 20, z: cableStartZ },
-          { x, y: box.depth - 44, z: box.height + 36 },
-          { x, y: box.depth - 44, z: cableEndZ },
+          { x, y: MONITOR_CABLE_PASS.position.y, z: box.height + 44 },
+          { x, y: MONITOR_CABLE_PASS.position.y, z: cableEndZ },
         ],
         cable.color,
         index === 0 ? 3.5 : 2.6,
@@ -662,7 +675,7 @@ function addMonitor(group, box, monitor, showWires) {
       group,
       "monitor-power-plug-clearance-gauge",
       { width: MONITOR_CABLE_PASS.plugHeadWidth, depth: 18, height: 24 },
-      { x: -30, y: box.depth - 44, z: box.height + 18 },
+      { x: -30, y: MONITOR_CABLE_PASS.position.y, z: box.height + 28 },
       0xff4b42,
       "40 mm power plug head clearance",
       0.65,
@@ -684,7 +697,6 @@ function buildScene() {
   activeMonitor = monitor;
   showSceneLabels = showLabelsToggle.checked;
   const separated = explodeToggle.checked ? 18 : 0;
-  const showMarkers = showMarkersToggle.checked;
   const showWires = showWiresToggle.checked;
 
   const floorZ = 2;
@@ -702,10 +714,8 @@ function buildScene() {
     `Bottom box ${box.width}W x ${box.depth}D x ${box.height}H`,
     0.2,
   );
-  if (showMarkers) {
-    addFrontDoor(root, box);
-    addPanelHoleMarkers(root, box);
-  }
+  addFrontDoor(root, box);
+  addPanelHoleMarkers(root, box);
 
   // Thermal printer: actual 145W x 180D x 130H, front-aligned at Y = 0.
   const printer = COMPONENTS.printer;
@@ -745,6 +755,16 @@ function buildScene() {
     motherboard.label,
     1,
     { x: -72, y: 20, z: -20 },
+  );
+  addBox(
+    root,
+    "motherboard-170-face-reference",
+    { width: 3, depth: 170, height: 170 },
+    { x: motherboardCenter.x + motherboard.size.width / 2 + 3, y: motherboardCenter.y, z: motherboardCenter.z },
+    0x98f0b4,
+    "Motherboard face 170 x 170 mm",
+    0.32,
+    { x: -18, y: 0, z: 22 },
   );
   addMotherboardDetails(root, motherboardCenter);
 
@@ -786,33 +806,53 @@ function buildScene() {
     });
   }
 
-  // Power strip: mounted to rear upper inner wall, not placed on the floor.
+  // Power strip: mounted on right inner wall near plug pass-through, not placed on the floor.
   const strip = COMPONENTS.powerStrip;
+  const stripWallSize = { width: 60, depth: 246, height: 89 };
   const stripCenter = {
-    x: -12,
-    y: box.depth - strip.size.depth / 2 - 5,
-    z: box.height - strip.size.height / 2 - 14,
+    x: rightX - stripWallSize.width / 2 - 6,
+    y: 166,
+    z: box.height - stripWallSize.height / 2 - 18,
   };
   addBox(
     root,
     "power-strip",
-    strip.size,
+    stripWallSize,
     stripCenter,
     strip.color,
     strip.label,
     1,
-    { x: -76, y: 24 },
+    { x: -32, y: 42 },
   );
-  addPowerStripDetails(root, stripCenter, strip.size);
+  addPowerStripDetails(root, stripCenter, stripWallSize);
+  if (showWires) {
+    addWire(
+      root,
+      "power-strip-input-cable-to-right-pass-through",
+      [
+        { x: stripCenter.x + stripWallSize.width / 2 - 6, y: stripCenter.y - 62, z: stripCenter.z - 12 },
+        { x: rightX - 10, y: 92, z: 92 },
+        { x: rightX - 6, y: PANEL_FEATURES.powerButton.position.y, z: PANEL_FEATURES.extensionWire.position.z + 10 },
+        { x: rightX + 18, y: PANEL_FEATURES.powerButton.position.y, z: PANEL_FEATURES.extensionWire.position.z },
+      ],
+      0x111111,
+      3.2,
+    );
+    addLabel(root, "Power extension input wire exits near lock/power hole", {
+      x: rightX + 22,
+      y: PANEL_FEATURES.powerButton.position.y,
+      z: PANEL_FEATURES.extensionWire.position.z + 54,
+    });
+  }
 
-  // Exhaust fan: 80 x 80 mm, outside rear/right wall of bottom system box only.
+  // Exhaust fan: 80 x 80 mm, outside right side wall near SMPS.
   const fan = COMPONENTS.fan;
   const fanCenter = {
-    x: rightX - fan.size.width / 2 - 20,
-    y: box.depth + fan.size.depth / 2,
+    x: rightX + fan.size.depth / 2,
+    y: 220,
     z: 96,
   };
-  addBox(root, "rear-right-fan", fan.size, fanCenter, fan.color, fan.label, 1, {
+  addBox(root, "right-side-fan", { width: fan.size.depth, depth: fan.size.width, height: fan.size.height }, fanCenter, fan.color, fan.label, 1, {
     x: -46,
     y: 38,
     z: 16,
@@ -823,14 +863,12 @@ function buildScene() {
   addMonitor(root, box, monitor, showWires);
 
   // Front/rear direction markers and airflow.
-  if (showMarkers) {
-    addLabel(root, "FRONT / CUSTOMER  Y=0", { x: 0, y: -52, z: 18 });
-    addLabel(root, "REAR / SERVICE  Y=box depth", { x: 0, y: box.depth + 66, z: 18 });
-  }
+  addLabel(root, "FRONT / CUSTOMER  Y=0", { x: 0, y: -52, z: 18 });
+  addLabel(root, "REAR / SERVICE  Y=box depth", { x: 0, y: box.depth + 66, z: 18 });
   if (showWires) {
     addArrow(root, { x: -box.width / 2 - 80, y: 62, z: 70 }, { x: -box.width / 2 - 8, y: 62, z: 70 }, COLORS.intake, "Blue intake");
     addArrow(root, { x: -20, y: -82, z: 56 }, { x: -20, y: 4, z: 56 }, COLORS.intake, "Blue intake");
-    addArrow(root, { x: fanCenter.x, y: box.depth - 18, z: fanCenter.z }, { x: fanCenter.x, y: box.depth + 118, z: fanCenter.z }, COLORS.exhaust, "Red exhaust");
+    addArrow(root, { x: rightX - 18, y: fanCenter.y, z: fanCenter.z }, { x: rightX + 118, y: fanCenter.y, z: fanCenter.z }, COLORS.exhaust, "Red exhaust");
   }
 
   addFloorGrid(box, monitor);
@@ -850,16 +888,20 @@ function updateReadout(box, monitor) {
   const rows = [
     ["Box", `${box.width}W x ${box.depth}D x ${box.height}H mm`, COLORS.box],
     ["Printer", "145W x 180D x 130H mm", COMPONENTS.printer.color],
-    ["Motherboard", "170W x 170H x 50D mm", COMPONENTS.motherboard.color],
+    ["Motherboard", "Actual face 170W x 170H x 50D mm", COMPONENTS.motherboard.color],
+    ["MB footprint", "Vertical mount uses 50W x 170D floor space", COMPONENTS.motherboard.color],
     ["SMPS", "143L x 80W x 40H mm", COMPONENTS.smps.color],
     ["Sound", "115L x 113W x 97H mm", COMPONENTS.soundBox.color],
     ["Power strip", COMPONENTS.powerStrip.actual, COMPONENTS.powerStrip.color],
+    ["Power strip mount", "Right inner wall, off floor", COMPONENTS.powerStrip.color],
+    ["Sound box note", "Internal only, no outside holes", COMPONENTS.soundBox.color],
     ["Front door", `Full ${box.width}W x ${box.height}H mm opening`, 0xb7c5ce],
-    ["Door lock", "Front/right edge, below monitor", 0xd5dde1],
-    ["Wire routing", "Simulated cables to rear grommet + board", 0x3b3f45],
-    ["Power button hole", "19.5 mm round, front below monitor", 0x2f363d],
-    ["Wire grommet hole", "25 mm round, rear/right bottom", 0x15191d],
-    ["Monitor cable pass", "50 mm wide for 40 mm power plug", COLORS.cable],
+    ["Door lock", "Right side near front edge", 0xd5dde1],
+    ["Wire routing", "Top monitor hole + right plug pass", 0x3b3f45],
+    ["Power button hole", "19.5 mm round, right side near front", 0x2f363d],
+    ["Extension plug pass", "Uses right control opening, 40 mm plug", 0x15191d],
+    ["Monitor cable hole", "50 mm round top hole under monitor", COLORS.cable],
+    ["Monitor mount plate", `Flat ${box.width}W x 48D mm, front aligned`, 0x8f9da6],
     ["Monitor cables", "Power + HDMI + USB touch into box", 0x2f8fff],
     ["Monitor tilt", `${MONITOR_CABLE_PASS.tiltDegrees} degree visual reference`, COLORS.monitor],
     ["Monitor ref", `${monitor.width}W x ${monitor.height}H mm`, COLORS.screen],
@@ -903,7 +945,10 @@ function fitCamera(enableTransition = true) {
 function animate() {
   const delta = clock.getDelta();
   if (autoRotateToggle.checked) {
-    rotateView(delta * 0.45);
+    orbitHorizontal(-delta * 0.45);
+  }
+  if (orbitVelocity.azimuth || orbitVelocity.elevation) {
+    orbitBy(orbitVelocity.azimuth * delta, orbitVelocity.elevation * delta);
   }
   controls.update();
   renderer.render(scene, camera);
@@ -911,25 +956,103 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-function rotateView(angleRadians) {
+function orbitHorizontal(angleRadians) {
+  orbitBy(angleRadians, 0);
+}
+
+function orbitVertical(angleRadians) {
   const offset = camera.position.clone().sub(controls.target);
-  offset.applyAxisAngle(new THREE.Vector3(0, 0, 1), angleRadians);
+  const radius = offset.length();
+  const horizontalRadius = Math.hypot(offset.x, offset.y);
+  const elevation = Math.atan2(offset.z, horizontalRadius);
+  const maxElevation = THREE.MathUtils.degToRad(84);
+  const minElevation = THREE.MathUtils.degToRad(-20);
+  const nextElevation = THREE.MathUtils.clamp(elevation + angleRadians, minElevation, maxElevation);
+  const azimuth = Math.atan2(offset.y, offset.x);
+  setOrbitFromAngles(radius, azimuth, nextElevation);
+}
+
+function orbitBy(azimuthDelta, elevationDelta) {
+  const offset = camera.position.clone().sub(controls.target);
+  const radius = offset.length();
+  const horizontalRadius = Math.hypot(offset.x, offset.y);
+  const azimuth = Math.atan2(offset.y, offset.x) + azimuthDelta;
+  const elevation = Math.atan2(offset.z, horizontalRadius);
+  const nextElevation = THREE.MathUtils.clamp(
+    elevation + elevationDelta,
+    THREE.MathUtils.degToRad(-20),
+    THREE.MathUtils.degToRad(84),
+  );
+  setOrbitFromAngles(radius, azimuth, nextElevation);
+}
+
+function setOrbitFromAngles(radius, azimuth, elevation) {
+  const horizontalRadius = radius * Math.cos(elevation);
+  const offset = new THREE.Vector3(
+    horizontalRadius * Math.cos(azimuth),
+    horizontalRadius * Math.sin(azimuth),
+    radius * Math.sin(elevation),
+  );
   camera.position.copy(controls.target).add(offset);
   camera.lookAt(controls.target);
+  controls.update();
 }
 
 presetSelect.addEventListener("change", buildScene);
 monitorSelect.addEventListener("change", buildScene);
 explodeToggle.addEventListener("change", buildScene);
 showLabelsToggle.addEventListener("change", buildScene);
-showMarkersToggle.addEventListener("change", buildScene);
 showWiresToggle.addEventListener("change", buildScene);
 showReadoutToggle.addEventListener("change", () => {
   readout.hidden = !showReadoutToggle.checked;
 });
-rotateLeftButton.addEventListener("click", () => rotateView(THREE.MathUtils.degToRad(45)));
-rotateRightButton.addEventListener("click", () => rotateView(THREE.MathUtils.degToRad(-45)));
+bindOrbitButton(orbitLeftButton, orbitHoldSpeed, 0);
+bindOrbitButton(orbitRightButton, -orbitHoldSpeed, 0);
+bindOrbitButton(orbitUpButton, 0, THREE.MathUtils.degToRad(32));
+bindOrbitButton(orbitDownButton, 0, THREE.MathUtils.degToRad(-32));
+orbitResetButton.addEventListener("click", () => fitCamera(false));
 window.addEventListener("resize", resize);
+
+function bindOrbitButton(button, azimuthSpeed, elevationSpeed) {
+  let pressed = false;
+  let movedByHold = false;
+  const clickAzimuth = Math.sign(azimuthSpeed) * THREE.MathUtils.degToRad(18);
+  const clickElevation = Math.sign(elevationSpeed) * THREE.MathUtils.degToRad(12);
+
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    pressed = true;
+    movedByHold = false;
+    orbitVelocity.azimuth = azimuthSpeed;
+    orbitVelocity.elevation = elevationSpeed;
+    button.setPointerCapture(event.pointerId);
+    window.setTimeout(() => {
+      if (pressed) movedByHold = true;
+    }, 180);
+  });
+
+  button.addEventListener("pointerup", (event) => {
+    event.preventDefault();
+    pressed = false;
+    orbitVelocity.azimuth = 0;
+    orbitVelocity.elevation = 0;
+    if (!movedByHold) orbitBy(clickAzimuth, clickElevation);
+    button.releasePointerCapture(event.pointerId);
+  });
+
+  button.addEventListener("pointercancel", () => {
+    pressed = false;
+    orbitVelocity.azimuth = 0;
+    orbitVelocity.elevation = 0;
+  });
+
+  button.addEventListener("pointerleave", () => {
+    if (!pressed) return;
+    pressed = false;
+    orbitVelocity.azimuth = 0;
+    orbitVelocity.elevation = 0;
+  });
+}
 
 buildScene();
 resize();

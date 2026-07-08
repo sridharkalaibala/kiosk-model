@@ -103,12 +103,6 @@ button:hover {
   font-size: 13px;
 }
 
-.button-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
 #readout {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -117,6 +111,88 @@ button:hover {
   padding-top: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   font-size: 13px;
+}
+
+.orbit-pad {
+  display: grid;
+  grid-template-columns: 38px 38px 38px;
+  grid-template-rows: 38px 38px 38px;
+  gap: 6px;
+  width: max-content;
+  align-self: center;
+}
+
+.orbit-btn {
+  position: relative;
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.orbit-up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.orbit-left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.orbit-reset {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.orbit-right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.orbit-down {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.orbit-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+
+.orbit-left::before,
+.orbit-right::before,
+.orbit-up::before,
+.orbit-down::before {
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid #f4f7f8;
+  border-left: 2px solid #f4f7f8;
+}
+
+.orbit-left::before {
+  transform: rotate(-45deg);
+}
+
+.orbit-right::before {
+  transform: rotate(135deg);
+}
+
+.orbit-up::before {
+  transform: rotate(45deg);
+}
+
+.orbit-down::before {
+  transform: rotate(225deg);
+}
+
+.orbit-reset::before {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #f4f7f8;
+  border-radius: 50%;
 }
 
 #readout[hidden] {
