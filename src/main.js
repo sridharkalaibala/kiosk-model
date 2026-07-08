@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import { BOX_PRESETS, COLORS, COMPONENTS, IMAGE_TEXTURES, MONITORS } from "./config.js";
+import { BOX_PRESETS, COLORS, COMPONENTS, MONITORS } from "./config.js";
 
 const viewer = document.querySelector("#viewer");
 const presetSelect = document.querySelector("#preset");
@@ -34,10 +34,6 @@ const root = new THREE.Group();
 scene.add(root);
 let activeBox = BOX_PRESETS.compact;
 let activeMonitor = MONITORS["24"];
-
-const textureLoader = new THREE.TextureLoader();
-textureLoader.setCrossOrigin("anonymous");
-const textureCache = new Map();
 
 scene.add(new THREE.HemisphereLight(0xdcefff, 0x343a40, 2.2));
 const sun = new THREE.DirectionalLight(0xffffff, 2.4);
@@ -132,40 +128,6 @@ function addCylinder(group, name, radius, depth, position, color, rotation = {})
   return mesh;
 }
 
-function getTexture(textureInfo) {
-  if (!textureCache.has(textureInfo.url)) {
-    const texture = textureLoader.load(
-      textureInfo.url,
-      () => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.needsUpdate = true;
-      },
-      undefined,
-      () => textureCache.delete(textureInfo.url),
-    );
-    texture.colorSpace = THREE.SRGBColorSpace;
-    textureCache.set(textureInfo.url, texture);
-  }
-  return textureCache.get(textureInfo.url);
-}
-
-function addPhotoPlane(group, name, textureInfo, size, position, rotation = {}, opacity = 0.95) {
-  const geometry = new THREE.PlaneGeometry(size.width, size.height);
-  const material = new THREE.MeshBasicMaterial({
-    map: getTexture(textureInfo),
-    transparent: true,
-    opacity,
-    side: THREE.DoubleSide,
-    toneMapped: false,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = name;
-  mesh.position.set(position.x, position.y, position.z);
-  mesh.rotation.set(rotation.x ?? 0, rotation.y ?? 0, rotation.z ?? 0);
-  group.add(mesh);
-  return mesh;
-}
-
 function addReceiptSlot(group, box, printerCenter) {
   const slot = addBox(
     group,
@@ -182,13 +144,6 @@ function addReceiptSlot(group, box, printerCenter) {
 }
 
 function addPrinterDetails(group, printerCenter, printerSize) {
-  addPhotoPlane(
-    group,
-    "printer-photo-reference",
-    IMAGE_TEXTURES.printer,
-    { width: printerSize.width - 10, height: printerSize.depth - 12 },
-    { x: printerCenter.x, y: printerCenter.y + 2, z: printerCenter.z + printerSize.height / 2 + 1 },
-  );
   addBox(
     group,
     "printer-front-face",
@@ -245,14 +200,6 @@ function addPrinterDetails(group, printerCenter, printerSize) {
 }
 
 function addMotherboardDetails(group, center) {
-  addPhotoPlane(
-    group,
-    "motherboard-photo-reference",
-    IMAGE_TEXTURES.motherboard,
-    { width: 150, height: 150 },
-    { x: center.x + 25.8, y: center.y, z: center.z },
-    { y: Math.PI / 2, z: Math.PI / 2 },
-  );
   const chipColor = 0x1d2420;
   addBox(group, "motherboard-cpu", { width: 22, depth: 28, height: 8 }, { x: center.x + 2, y: center.y - 24, z: center.z + 18 }, chipColor, "");
   addBox(group, "motherboard-ram-1", { width: 10, depth: 92, height: 7 }, { x: center.x + 4, y: center.y + 14, z: center.z + 4 }, 0x273f34, "");
@@ -322,13 +269,6 @@ function addMotherboardMountingHardware(group, plateX, plateY, plateZ) {
 }
 
 function addSmpsDetails(group, center, size) {
-  addPhotoPlane(
-    group,
-    "smps-photo-reference",
-    IMAGE_TEXTURES.smps,
-    { width: size.width - 8, height: size.depth - 8 },
-    { x: center.x, y: center.y, z: center.z + size.height / 2 + 3 },
-  );
   for (let i = -2; i <= 2; i += 1) {
     addBox(
       group,
@@ -370,15 +310,6 @@ function addSmpsDetails(group, center, size) {
 }
 
 function addSoundBoxDetails(group, center, size) {
-  addPhotoPlane(
-    group,
-    "sound-box-photo-reference",
-    IMAGE_TEXTURES.soundBox,
-    { width: size.width - 10, height: size.height - 10 },
-    { x: center.x, y: center.y - size.depth / 2 - 4, z: center.z },
-    { x: Math.PI / 2 },
-    0.88,
-  );
   addBox(
     group,
     "sound-box-sealed-badge",
@@ -391,15 +322,6 @@ function addSoundBoxDetails(group, center, size) {
 }
 
 function addPowerStripDetails(group, center, size) {
-  addPhotoPlane(
-    group,
-    "power-strip-photo-reference",
-    IMAGE_TEXTURES.powerStrip,
-    { width: size.width - 10, height: size.depth - 10 },
-    { x: center.x, y: center.y, z: center.z + size.height / 2 + 2 },
-    {},
-    0.9,
-  );
   for (let i = -2; i <= 2; i += 1) {
     addCylinder(
       group,

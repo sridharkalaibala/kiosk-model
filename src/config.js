@@ -62,26 +62,3 @@ export const COLORS = {
   exhaust: 0xff4b42,
   label: 0xffffff,
 };
-
-export const IMAGE_TEXTURES = {
-  printer: {
-    url: "assets/images/receipt-printer.jpg",
-    source: "https://commons.wikimedia.org/wiki/File:Twitter_receipt_printer.jpg",
-  },
-  motherboard: {
-    url: "assets/images/motherboard.jpg",
-    source: "https://commons.wikimedia.org/wiki/File:Computer-motherboard.jpg",
-  },
-  smps: {
-    url: "assets/images/smps.jpg",
-    source: "https://commons.wikimedia.org/wiki/File:Switch_Mode_Power_Supply.jpg",
-  },
-  soundBox: {
-    url: "assets/images/sound-box.jpg",
-    source: "https://commons.wikimedia.org/wiki/File:Loudspeaker_enclosure.jpg",
-  },
-  powerStrip: {
-    url: "assets/images/power-strip.jpg",
-    source: "https://commons.wikimedia.org/wiki/File:Italian_power_strip.jpg",
-  },
-};
